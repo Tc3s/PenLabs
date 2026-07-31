@@ -1,0 +1,84 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — FULL-AUDIT Profile
+# Nuke Mode: Maximum coverage, all tools enabled
+# Use case: Full penetration test, compliance audits
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: full-audit
+  description: "Nuke Mode  — Playwright SPA → Proxy Rotation → Nuclei Chunking"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  # ... (giữ nguyên bước trước) ...
+  - step: spa_discovery
+    tool: playwright
+    enabled: true
+    config:
+      timeout: 30
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      follow_redirects: true
+      tech_detect: true
+      status_code: true
+      title: true
+      web_server: true
+
+  - step: crawl
+    tool: katana
+    enabled: true
+    config:
+      max_depth: 5
+      js_crawl: true
+      headless: true
+      timeout: 600
+
+  # ... (các bước khác giữ nguyên) ...
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 30
+      tags:
+        - cve
+        - misconfig
+        - exposure
+        - takeover
+        - default-login
+        - tech
+        - token
+        - network
+      severity:
+        - critical
+        - high
+        - medium
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  use_playwright: true
+  sqlmap_relay: true
+  auto_exploit: false
+  visual_recon: true
+  persistence: false
+  interactsh: true
+  smart_cpe_filter: true
+
+requirements:
+  critical:
+    - nmap
+  important:
+    - nuclei
+    - httpx
+    - naabu
+  optional:
+    - rustscan
+    - katana
+    - ffuf
+    - gowitness
+    - dalfox
+    - sqlmap

@@ -1,0 +1,93 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — FAST (Sniper) Profile (Certified)
+# Quick targeted scan: OSINT → Naabu → Nmap -sV → Nuclei
+# Optimized for Proxy Rotation & Nuclei Chunking
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: fast
+  description: "Sniper Mode  — Proxy Rotation → Playwright → Nuclei Chunking"
+  author: PenLabs
+  version: "1.0"
+  tactical_mode: "sniper"
+
+pipeline:
+  - step: subdomain_enum
+    tool: subfinder
+    enabled: true
+    config:
+      timeout: 60
+
+  - step: dns_enum
+    tool: dnsx
+    enabled: true
+
+  - step: port_scan
+    tool: naabu
+    enabled: true
+    config:
+      ports: top-1000
+      rate: 3000
+      timeout: 300
+
+  - step: port_scan
+    tool: nmap
+    enabled: true
+    config:
+      scan_type: version
+      scripts: true
+      timing: T3
+      ports: from-naabu
+
+  - step: spa_discovery
+    tool: playwright
+    enabled: true
+    config:
+      timeout: 20
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      follow_redirects: true
+      tech_detect: true
+
+  - step: crawl
+    tool: katana
+    enabled: true
+    config:
+      max_depth: 3
+      js_crawl: false
+      timeout: 300
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 15
+      tags:
+        - cve
+        - misconfig
+        - exposure
+        - takeover
+        - default-login
+      severity:
+        - critical
+        - high
+
+rate_limit:
+  nuclei_rate: 100
+  nuclei_concurrency: 15
+  nmap_timing: T3
+  requests_per_second: 80
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  use_playwright: true
+  waf_bypass: false
+  auto_exploit: false
+  visual_recon: false
+  persistence: false
+  interactsh: false
+  smart_cpe_filter: true

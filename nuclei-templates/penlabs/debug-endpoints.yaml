@@ -1,0 +1,58 @@
+id: penlabs-debug-endpoints
+
+info:
+  name: Debug Endpoints Exposure
+  author: PenLabs
+  severity: high
+  description: |
+    Detects common debug/profiling endpoints left enabled in production.
+    These can leak sensitive application internals, stack traces, and configs.
+  tags: penlabs,exposure,misconfig,debug
+  reference:
+    - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/debug"
+      - "{{BaseURL}}/_debug"
+      - "{{BaseURL}}/debug/vars"
+      - "{{BaseURL}}/debug/pprof"
+      - "{{BaseURL}}/_profiler"
+      - "{{BaseURL}}/actuator"
+      - "{{BaseURL}}/actuator/env"
+      - "{{BaseURL}}/actuator/health"
+      - "{{BaseURL}}/actuator/configprops"
+      - "{{BaseURL}}/actuator/mappings"
+      - "{{BaseURL}}/__debug__"
+      - "{{BaseURL}}/elmah.axd"
+      - "{{BaseURL}}/trace"
+      - "{{BaseURL}}/server-info"
+      - "{{BaseURL}}/server-status"
+      - "{{BaseURL}}/phpinfo.php"
+      - "{{BaseURL}}/info.php"
+      - "{{BaseURL}}/.well-known/openid-configuration"
+
+    stop-at-first-match: false
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: word
+        words:
+          - "debug"
+          - "profiler"
+          - "actuator"
+          - "phpinfo"
+          - "stack trace"
+          - "environment"
+          - "goroutine"
+          - "alloc_space"
+          - "configprops"
+          - "requestMappings"
+          - "elmah"
+          - "PHP Version"
+        condition: or

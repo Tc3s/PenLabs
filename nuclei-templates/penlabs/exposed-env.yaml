@@ -1,0 +1,52 @@
+id: penlabs-exposed-env
+
+info:
+  name: Exposed .env Configuration File
+  author: PenLabs
+  severity: critical
+  description: |
+    Detects publicly accessible .env files containing database credentials,
+    API keys, and other sensitive configuration data.
+  tags: penlabs,exposure,misconfig,env
+  reference:
+    - https://owasp.org/Top10/A05_2021-Security_Misconfiguration/
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}/.env"
+      - "{{BaseURL}}/.env.local"
+      - "{{BaseURL}}/.env.production"
+      - "{{BaseURL}}/.env.staging"
+      - "{{BaseURL}}/.env.backup"
+      - "{{BaseURL}}/.env.dev"
+
+    matchers-condition: and
+    matchers:
+      - type: word
+        words:
+          - "DB_PASSWORD"
+          - "DB_HOST"
+          - "APP_KEY"
+          - "SECRET_KEY"
+          - "AWS_SECRET"
+          - "API_KEY"
+        condition: or
+
+      - type: word
+        words:
+          - "="
+        condition: and
+
+      - type: status
+        status:
+          - 200
+
+    extractors:
+      - type: regex
+        name: credentials
+        regex:
+          - '(?i)(DB_PASSWORD|DB_PASS|DATABASE_PASSWORD|MYSQL_PASSWORD)\s*=\s*(.+)'
+          - '(?i)(APP_KEY|SECRET_KEY|JWT_SECRET)\s*=\s*(.+)'
+          - '(?i)(AWS_SECRET_ACCESS_KEY|AWS_ACCESS_KEY_ID)\s*=\s*(.+)'
+          - '(?i)(API_KEY|STRIPE_SECRET|SENDGRID_API_KEY)\s*=\s*(.+)'

@@ -1,0 +1,41 @@
+{
+  "headers": {
+    "Accept": "application/json"
+  },
+  "cookie": "",
+  "identities": {
+    "userA": {
+      "token": "",
+      "headers": {},
+      "cookie": ""
+    },
+    "userB": {
+      "token": "",
+      "headers": {},
+      "cookie": ""
+    }
+  },
+  "refresh": {
+    "url": "https://app.example.com/api/login",
+    "method": "POST",
+    "json": {
+      "username": "user@example.com",
+      "password": "REPLACE_ME"
+    },
+    "headers": {
+      "Content-Type": "application/json"
+    },
+    "token_path": "data.access_token",
+    "auth_header_key": "Authorization",
+    "auth_header_prefix": "Bearer ",
+    "cookie_path": "",
+    "csrf_path": "data.csrf",
+    "csrf_header": "X-CSRF-Token",
+    "interval_seconds": 600,
+    "timeout": 15,
+    "verify_tls": false
+  },
+  "refresh_hooks": {
+    "notes": "Replace login URL, credentials and token/csrf paths for each client. Do not commit real secrets."
+  }
+}

@@ -1,0 +1,110 @@
+id: penlabs-api-key-leak
+
+info:
+  name: API Key Leakage in JavaScript Files & HTML Source
+  author: PenLabs
+  severity: high
+  description: |
+    Scans JavaScript files, HTML source, and common SPA asset paths for
+    hardcoded API keys, tokens, and cloud credentials. Targets both the
+    root page and dynamically discovered JS/JSON sub-resources where
+    modern SPAs typically compile secrets.
+    Bug bounty validated patterns.
+  tags: penlabs,exposure,token,secret,javascript
+  reference:
+    - https://owasp.org/Top10/A07_2021-Identification_and_Authentication_Failures/
+
+flow: |
+  http(1);
+  for (let js of iterate(template["js_files"])) {
+    set("js_url", js);
+    http(2);
+  }
+
+http:
+  # Request 1: Root page — extract inline secrets + discover JS URLs
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+
+    matchers-condition: or
+    matchers:
+      - type: regex
+        part: body
+        regex:
+          - "(?i)AKIA[0-9A-Z]{16}"
+          - "AIza[0-9A-Za-z_-]{35}"
+          - "xox[bpors]-[0-9a-zA-Z]{10,48}"
+          - "ghp_[a-zA-Z0-9]{36}"
+          - "github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}"
+          - "sk_live_[0-9a-zA-Z]{24,}"
+          - "pk_live_[0-9a-zA-Z]{24,}"
+          - "SK[0-9a-fA-F]{32}"
+          - "SG\\.[a-zA-Z0-9_-]{22}\\.[a-zA-Z0-9_-]{43}"
+          - "(?i)firebase[a-z0-9_.-]*\\.firebaseio\\.com"
+          - "key-[0-9a-zA-Z]{32}"
+          - "(?i)Ocp-Apim-Subscription-Key.{0,5}[0-9a-zA-Z]{32}"
+          - "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
+        condition: or
+
+    extractors:
+      - type: regex
+        name: leaked_key
+        regex:
+          - "AKIA[0-9A-Z]{16}"
+          - "AIza[0-9A-Za-z_-]{35}"
+          - "xox[bpors]-[0-9a-zA-Z]{10,48}"
+          - "ghp_[a-zA-Z0-9]{36}"
+          - "sk_live_[0-9a-zA-Z]{24,}"
+          - "SG\\.[a-zA-Z0-9_-]{22}\\.[a-zA-Z0-9_-]{43}"
+
+      # Extract JS file URLs from root page for flow-based crawling
+      - type: regex
+        name: js_files
+        part: body
+        internal: true
+        regex:
+          - "(?:src|href)\\s*=\\s*[\"']([^\"']*\\.js(?:\\?[^\"']*)?)[\"']"
+          - "\"/(?:static|assets|js|_next|chunks|build)/[^\"]*\\.(?:js|mjs)(?:\\?[^\"]*)?\""
+        group: 1
+
+  # Request 2: Scan each discovered JS file for hardcoded secrets
+  - method: GET
+    path:
+      - "{{BaseURL}}/{{js_url}}"
+
+    matchers-condition: and
+    matchers:
+      - type: status
+        status:
+          - 200
+
+      - type: regex
+        part: body
+        regex:
+          - "(?i)AKIA[0-9A-Z]{16}"
+          - "AIza[0-9A-Za-z_-]{35}"
+          - "xox[bpors]-[0-9a-zA-Z]{10,48}"
+          - "ghp_[a-zA-Z0-9]{36}"
+          - "github_pat_[a-zA-Z0-9]{22}_[a-zA-Z0-9]{59}"
+          - "sk_live_[0-9a-zA-Z]{24,}"
+          - "pk_live_[0-9a-zA-Z]{24,}"
+          - "SK[0-9a-fA-F]{32}"
+          - "SG\\.[a-zA-Z0-9_-]{22}\\.[a-zA-Z0-9_-]{43}"
+          - "(?i)firebase[a-z0-9_.-]*\\.firebaseio\\.com"
+          - "key-[0-9a-zA-Z]{32}"
+          - "(?i)Ocp-Apim-Subscription-Key.{0,5}[0-9a-zA-Z]{32}"
+          - "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"
+        condition: or
+
+    extractors:
+      - type: regex
+        name: leaked_key_in_js
+        regex:
+          - "AKIA[0-9A-Z]{16}"
+          - "AIza[0-9A-Za-z_-]{35}"
+          - "xox[bpors]-[0-9a-zA-Z]{10,48}"
+          - "ghp_[a-zA-Z0-9]{36}"
+          - "sk_live_[0-9a-zA-Z]{24,}"
+          - "SG\\.[a-zA-Z0-9_-]{22}\\.[a-zA-Z0-9_-]{43}"
+          - "-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----"

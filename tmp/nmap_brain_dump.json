@@ -1,0 +1,579 @@
+{
+  "scripts": {},
+  "nselib": {
+    "afp.lua": {
+      "functions": [
+        "Proto:create_fp_packet",
+        "Proto:parse_fp_header",
+        "Proto:read_fp_packet",
+        "Proto:dsi_open_session",
+        "Proto:dsi_close_session",
+        "Proto:fp_get_server_info",
+        "Proto:fp_get_user_info",
+        "Helper:Login",
+        "Helper:ListShares"
+      ],
+      "network_logic": "DSI (Data Stream Interface) over TCP port 548. Operates in Request/Response mode. 16-byte header containing flags, command, RequestId, data_offset, data_len, and reserved. Receive logic reads header first, extracts data length, then loops socket read to ensure complete packet acquisition.",
+      "raw_payloads": [
+        "\u0001\u0004\u0000\u0001\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0006\u0000\u0000\u0000\u0000\u0001\u0004\u0000\u0000\u0004\u0000 (DSI Open Session)",
+        "\u0002\u000f\u0000\u0002\u0000\u0000\u0000\u0000\u0000\u0000\u0000\u0002\u0000\u0000\u0000\u0000\u000f\u0000 (FPGetSrvrInfo)"
+      ],
+      "edge_cases": "Network address parsing in server info mapping tags (0x01-0x07) for IPv4, IPv6, port, DDP, DNS. Requires alignment to even boundaries: (pos + 1) % 2 ~= 0. Handles socket failures with explicit ERROR.SocketError (1000)."
+    },
+    "ajp.lua": {
+      "functions": [
+        "AJP.ForwardRequest:new",
+        "AJP.ForwardRequest:__tostring",
+        "AJP.Response.SendHeaders.parse",
+        "Comm:connect",
+        "Comm:send",
+        "Comm:receive",
+        "Helper:request",
+        "Helper:shutdownContainer"
+      ],
+      "network_logic": "AJPv1.3 binary protocol over TCP port 8009. Request packets start with magic 0x1234, followed by 2-byte length and code (0x02 FORWARD_REQUEST). Methods (OPTIONS, GET, POST, etc.) mapped to 1-byte integer IDs. Headers and attributes are packed. Common headers mapped to 2-byte shortcuts (e.g., accept = 0xA001). Response packets from container start with magic \"AB\" (0x4142) and are read sequentially until END_RESPONSE (0x05) is received.",
+      "raw_payloads": [
+        "\u00124\u0000\u0001\u0007 (Shutdown container packet)"
+      ],
+      "edge_cases": "Maintains header ordering using rawheaders table to mimic standard HTTP libraries. Supports basic authentication auto-challenge handling if 401 response contains WWW-Authenticate."
+    },
+    "amqp.lua": {
+      "functions": [
+        "AMQP:connect",
+        "AMQP:disconnect",
+        "AMQP:decodeTable",
+        "AMQP:decodeString",
+        "AMQP:decodeBoolean",
+        "AMQP:handshake",
+        "getProtocolVersion",
+        "getServerVersion"
+      ],
+      "network_logic": "AMQP protocol (0-8, 0-9, 0-9-1) over TCP port 5672. Handshake starts by client sending \"AMQP\" + 4-byte protocol version payload. If server rejects client version, it sends \"AMQP\" + its supported version back. Client parses this, disconnects, reconnects, and retries with server-proposed version.",
+      "raw_payloads": [
+        "AMQP\u0000\u0000\t\u0001 (AMQP 0-9-1 initiation packet)"
+      ],
+      "edge_cases": "Field tables parser (decodeTable) decodes embedded types recursively: \"F\" (table), \"S\" (string), \"t\" (boolean). Must enforce boundary checking against table size byte counts to prevent endless buffer read loops or crash."
+    },
+    "anyconnect.lua": {
+      "functions": [
+        "Cisco.Util.generate_mac",
+        "Cisco.AnyConnect:connect",
+        "Cisco.AnyConnect:get_version"
+      ],
+      "network_logic": "XML-based client-concentrator signaling over HTTPS (TCP port 443). Uses specialized headers: X-Transcend-Version: 1, X-Aggregate-Auth: 1, X-AnyConnect-Platform: mac-intel. Initial HEAD request to check redirection, followed by XML POST containing version, unique device ID, client MAC, selected tunnel group, and group-access URI.",
+      "raw_payloads": [
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?><config-auth client=\"vpn\" type=\"init\" aggregate-auth-version=\"2\"><version who=\"vpn\">...</version>... (XML init payload)"
+      ],
+      "edge_cases": "Redirection loops limited to 5 redirects. XML response parsing uses raw regex matches rather than full XML tree parsers, making it susceptible to failure if response tags contain unexpected XML attributes or newline formats."
+    },
+    "asn1.lua": {
+      "functions": [
+        "ASN1Decoder:decode",
+        "ASN1Decoder:decodeLength",
+        "ASN1Decoder:decodeSeq",
+        "ASN1Decoder:decodeOID",
+        "ASN1Decoder:decodeInt",
+        "ASN1Encoder:encodeInt",
+        "ASN1Encoder:encodeLength",
+        "ASN1Encoder:encodeSeq"
+      ],
+      "network_logic": "Encoder/decoder library for ASN.1 BER (Basic Encoding Rules) format (TLV - Tag Length Value), utilized by SNMP, LDAP, X.509. Tag byte encodes Class (Universal, Application, ContextSpecific, Private) and form (primitive vs. constructed). Length handles both short-form (1 byte) and long-form (>127, MSB set).",
+      "raw_payloads": [
+        "\u0001\u0001\u00ff (Boolean True)",
+        "\u0005\u0000 (Null value)",
+        "0\t\u0002\u0001\u0001\u0002\u0001\u00ff\u0002\u0001B (Sequence: 1, -1, 66)"
+      ],
+      "edge_cases": "Integers are decoded using two-s complement (negative values if first byte > 127). OID decoder maps first two elements via (first * 40 + second), sub-identifiers encoded in 7-bit base-128 stream with bit 8 as continuation flag. Stop-on-error behavior configurable to bypass corrupt structures."
+    },
+    "base32.lua": {
+      "functions": [
+        "enc",
+        "dec",
+        "etransform"
+      ],
+      "network_logic": "Pure computational library. Used for encoding/decoding Base32 data following RFC 4648. Crucial for handling Tor .onion addresses, DNSSEC keys, or Base32-encoded identifiers.",
+      "raw_payloads": [],
+      "edge_cases": "Supports standard Base32 (A-Z, 2-7) and Base32Hex (0-9, A-V). Strict padding enforcement (=). Raises errors on trailing characters or if input length is not divisible by 8."
+    },
+    "base64.lua": {
+      "functions": [
+        "enc",
+        "dec"
+      ],
+      "network_logic": "Pure computational library. Standard Base64 encoding/decoding according to RFC 4648. Extensively used in Basic Auth, HTTP headers, SMTP, and binary data transport inside XML/JSON.",
+      "raw_payloads": [],
+      "edge_cases": "Strips all whitespaces (spaces, tabs, newlines) before decoding. Validates padding character (=). Raises error if length is not divisible by 4."
+    },
+    "bin.lua": {
+      "functions": [
+        "pack",
+        "unpack"
+      ],
+      "network_logic": "Legacy deprecated library rewritten in Lua 5.3 native string.pack. Emulates older lpack functionality, providing structure serialization/deserialization for raw socket payloads (big/little endian formatting).",
+      "raw_payloads": [],
+      "edge_cases": "Enforces 1-byte alignment (!1) internally. Hex strings format (H) is always treated as native endian. Bit strings (B) are no longer supported. Clamps parameters to their max sizes (e.g. 0xff for char, 0xffff for short)."
+    },
+    "bitcoin.lua": {
+      "functions": [
+        "NetworkAddress:new",
+        "NetworkAddress:fromString",
+        "Request.Version:new",
+        "Request.GetAddr:new",
+        "Request.VerAck:new",
+        "Response.Version:new",
+        "Response.Addr:parse",
+        "Response.recvPacket",
+        "Helper:exchVersion",
+        "Helper:getNodes"
+      ],
+      "network_logic": "BitCoin p2p protocol client implementation. Operates on TCP port 8333. Handshake requires client sending a Version request. Payload requires cryptographic SHA256 double-hash checksum. Node-to-node exchange via GetAddr/Addr command sequences.",
+      "raw_payloads": [
+        "\u00f9\u00be\u00b4\u00d9version\u0000\u0000\u0000\u0000\u0000 (Version header magic + command)",
+        "\u00f9\u00be\u00b4\u00d9verack\u0000\u0000\u0000\u0000\u0000\u0000 (VerAck payload)"
+      ],
+      "edge_cases": "Handles protocol switchover after Feb 20, 2012 where checksums became mandatory. Handles var_int and var_string parsing natively. Decodes IPv6 mapped IPv4 addresses (prefix ::ffff:)."
+    },
+    "bits.lua": {
+      "functions": [
+        "reverse",
+        "arshift"
+      ],
+      "network_logic": "Pure math helper library. Used for bitwise reversal (used in CRC, cryptography, checksums) and arithmetic right shifts (arshift).",
+      "raw_payloads": [],
+      "edge_cases": "Bit reversal only supports 8-bit or 32-bit limits. Arithmetic right shift supports negative integers explicitly using division to simulate sign extension."
+    },
+    "bittorrent.lua": {
+      "functions": [
+        "bdecode",
+        "dht_ping_thread",
+        "find_node_thread",
+        "get_peers_thread",
+        "Torrent:new",
+        "Torrent:load_from_magnet",
+        "Torrent:load_from_file",
+        "Torrent:trackers_peers",
+        "Torrent:dht_peers"
+      ],
+      "network_logic": "Bittorrent client and DHT protocol implementations over UDP/HTTP/HTTPS. Trackers are queried using HTTP GET or UDP binary payloads. DHT implementation uses UDP queries (ping, find_node, get_peers) using bencoded dictionaries.",
+      "raw_payloads": [
+        "d1:ad2:id20:<node_id>e1:q4:ping1:t2:<trans_id>1:y1:qe (DHT ping query)",
+        "d1:ad2:id20:<node_id>6:target20:<info_hash>e1:q9:find_node1:t2:<trans_id>1:y1:qe (DHT find_node query)",
+        "d1:ad2:id20:<node_id>9:info_hash20:<info_hash>e1:q9:get_peers1:t2:<trans_id>1:y1:qe (DHT get_peers query)"
+      ],
+      "edge_cases": "Bencoding dictionaries in Lua can have duplicate keys, handled by lists to bypass Lua table key uniqueness. Parses compact peers format (>I4 I2) and ipv4/ipv6 nodes in DHT responses."
+    },
+    "bjnp.lua": {
+      "functions": [
+        "BJNP.Header:new",
+        "BJNP.Header.parse",
+        "BJNP.Scanner.Request.Discover:new",
+        "BJNP.Scanner.Request.Identity:new",
+        "BJNP.Scanner.Response.Identity.parse",
+        "BJNP.Printer.Request.Discover:new",
+        "BJNP.Printer.Request.Identity:new",
+        "Helper:new",
+        "Helper:connect",
+        "Helper:discoverDevice",
+        "Helper:getDeviceIdentity"
+      ],
+      "network_logic": "Canon BJNP printer/scanner discovery and query protocol client implementation over UDP (typically port 8611/8612). Supports both unicast and broadcast packet forwarding.",
+      "raw_payloads": [
+        "BJNP header layout: >c4BBI4I2I4 (id=\"BJNP\", type, code, seq, session, length)",
+        "Discover request has code=1 (Printer or Scanner), Identity request has code=48."
+      ],
+      "edge_cases": "Identity parsing extracts key-value parameters from string response delimited by ';', e.g. MFG, MDL, DES, VER, CMD. Broadcast mode handles multiple async scanner/printer responses in a loop."
+    },
+    "brute.lua": {
+      "functions": [
+        "Options:new",
+        "Error:new",
+        "Engine:new",
+        "Engine:setUsernameIterator",
+        "Engine:setPasswordIterator",
+        "Engine:start",
+        "Engine:doAuthenticate"
+      ],
+      "network_logic": "Generic brute-force framework. Starts connection pools asynchronously, managing worker threads with smart congestion control on network errors or connection wait slots.",
+      "raw_payloads": [],
+      "edge_cases": "Thread pool resizing adjusts dynamically to server-side limit signs (e.g. FTP 421 or too many conn exceptions). Retries recoverable errors up to brute.retries. Handles credential files (delimiters like /). Has a stagnation check triggering exit after 100 failed connections."
+    },
+    "cassandra.lua": {
+      "functions": [
+        "loginstr",
+        "cmdstr",
+        "sendcmd",
+        "describe_cluster_name",
+        "describe_version",
+        "login"
+      ],
+      "network_logic": "Cassandra Thrift API client protocol implementation over TCP. Standard request header starts with CASSANDRAREQ (\u0080\u0001\u0000\u0001). Response header verification matches CASSANDRARESP (\u0080\u0001\u0000\u0002).",
+      "raw_payloads": [
+        "\u0080\u0001\u0000\u0001 + string.pack(\">s4\", cmd) (Thrift request envelope)",
+        "\u0000\u0000\u0000\u0001\f\u0000\u0001\r\u0000\u0001\u000b\u000b\u0000\u0000\u0000\u0002 (CASSLOGINMAGIC payload)"
+      ],
+      "edge_cases": "Extracts protocol string lengths (size + 4) before reading thrift packets to avoid partial frames. Verifies login status magic values: LOGINSUCC (\u0000\u0000\u0000\u0001\u0000), LOGINFAIL (\u0000\u0000\u0000\u0001\u000b)."
+    },
+    "citrixxml.lua": {
+      "functions": [
+        "decode_xml_document",
+        "send_citrix_xml_request",
+        "request_server_farm_data",
+        "parse_server_farm_data_response",
+        "request_appdata",
+        "parse_appdata_response",
+        "request_address",
+        "request_server_data",
+        "request_protocol_info",
+        "request_capabilities",
+        "request_validate_credentials",
+        "parse_validate_credentials_response"
+      ],
+      "network_logic": "Citrix XML Service HTTP POST protocol client. Queries XenApp/Citrix XML brokers (/scripts/WPnBr.dll) using custom HTTP headers and XML structures.",
+      "raw_payloads": [
+        "<?xml version=\"1.0\" encoding=\"ISO-8859-1\"?><!DOCTYPE NFuseProtocol SYSTEM \"NFuse.dtd\">... (Typical Citrix XML request)"
+      ],
+      "edge_cases": "Decodes decimal XML character references (e.g. &#32;) up to code point 255. Parses complex nested DOM nodes for ACL definitions (AccessList, Users, Groups, Domains) and Server Farm elements using regex pattern matching."
+    },
+    "coap.lua": {
+      "functions": [
+        "COAP.build",
+        "COAP.parse",
+        "COAP.header.build",
+        "COAP.header.parse",
+        "COAP.header.codes.build",
+        "COAP.header.codes.parse",
+        "COAP.header.options.build",
+        "COAP.header.options.parse",
+        "COAP.header.options.accept.build",
+        "COAP.header.options.accept.parse",
+        "COAP.header.options.block1.build",
+        "COAP.header.options.block1.parse",
+        "COAP.header.options.block2.build",
+        "COAP.header.options.block2.parse"
+      ],
+      "network_logic": "Constrained Application Protocol (CoAP) client framework over UDP (RFC 7252). Construct and parse binary packets with fixed header, token, delta-encoded options, payload marker (0xFF), and payloads.",
+      "raw_payloads": [
+        "ver | mtype | tkl, code, id, token, options... (CoAP packet structure)",
+        "Payload marker: \u00ff"
+      ],
+      "edge_cases": "Delta-encoded options sort dynamically using stable sorting to avoid Lua table key collision for duplicate option keys. Correctly handles block-wise transfers (Block1/Block2 options) by skipping parsing of payload frames."
+    },
+    "comm.lua": {
+      "functions": [
+        "get_banner",
+        "exchange",
+        "opencon",
+        "tryssl",
+        "bestoption",
+        "is_ssl"
+      ],
+      "network_logic": "Generic high-level connection management wrapper library for Nmap scripts. Interacts over TCP, UDP, or SSL sockets. Automatically attempts plain/SSL fallback when probing unknown service wrappers.",
+      "raw_payloads": [],
+      "edge_cases": "Fallback order and detection relies on shortport.ssl definitions. Handles dynamic timeout increments (request_timeout + connect_timeout) using a base window of 6000ms. Restores original socket protocol on UDP connection initialization."
+    },
+    "creds.lua": {
+      "functions": [
+        "RegStorage:new",
+        "RegStorage:add",
+        "RegStorage:setFilter",
+        "RegStorage:getAll",
+        "Account:new",
+        "Credentials:new",
+        "Credentials:add",
+        "Credentials:getCredentials",
+        "Credentials:getTable",
+        "Credentials:saveToFile"
+      ],
+      "network_logic": "Internal Nmap credential persistence engine. Stores credentials in nmap.registry.creds. Implements CSV/verbose/plain exports to file.",
+      "raw_payloads": [],
+      "edge_cases": "Uses bitmask flags for State values (VALID, PARAM, HASHED, LOCKED, DISABLED, etc.). Retrieves external credentials from script arguments (e.g. creds.global or creds.<service>). Uses coroutines to yield elements matching network targets."
+    },
+    "cvs.lua": {
+      "functions": [
+        "Helper:new",
+        "Helper:connect",
+        "Helper:login",
+        "Helper:close",
+        "Util.pwscramble"
+      ],
+      "network_logic": "Concurrent Versions System (CVS) pserver protocol implementation. Custom authentication exchange over TCP port 2401.",
+      "raw_payloads": [
+        "BEGIN AUTH REQUEST\n<repo>\n<user>\n<scrambled_pass>\nEND AUTH REQUEST\n"
+      ],
+      "edge_cases": "CVS server response validation checks for \"I LOVE YOU\n\" string. Scrambles input passwords using a static shifts array map offset by char byte values."
+    },
+    "datafiles.lua": {
+      "functions": [
+        "parse_protocols",
+        "parse_rpc",
+        "parse_services",
+        "parse_mac_prefixes",
+        "parse_file",
+        "parse_lines",
+        "read_from_file",
+        "get_array",
+        "get_assoc_array"
+      ],
+      "network_logic": "Nmap data configuration parsing library. Reads files such as nmap-services, nmap-protocols, nmap-rpc, and nmap-mac-prefixes.",
+      "raw_payloads": [],
+      "edge_cases": "Uses nmap.fetchfile to retrieve Nmap shared directories. Implements metatables over nmapdb (C bindings) to allow direct lookup calls for services/MACs, bypassing total parsing to save memory."
+    },
+    "datetime.lua": {
+      "functions": [
+        "record_skew",
+        "utc_offset",
+        "date_to_timestamp",
+        "format_timestamp",
+        "format_time",
+        "format_difftime"
+      ],
+      "network_logic": "Helper library for date and time parsing, formatting, and time skew recording. Does not execute direct network operations, but computes clock offset/skews relative to target service banners.",
+      "raw_payloads": [],
+      "edge_cases": "Adjusts calculated offset skew by subtracting half of the smoothed round-trip time (srtt / 2.0). Handles dates beyond the epoch (0xffffffff) and Windows negative-epoch date limits by adjusting the target year."
+    },
+    "dhcp6.lua": {
+      "functions": [
+        "DHCP6.Option[0x01].new",
+        "DHCP6.Option[0x01].parse",
+        "DHCP6.Option[0x03].new",
+        "DHCP6.Option[0x03].parse",
+        "DHCP6.Request:new",
+        "DHCP6.Response.parse",
+        "Helper:new",
+        "Helper:solicit"
+      ],
+      "network_logic": "DHCPv6 client protocol implementation over UDP (ports 546/547). Constructs Solicit packets and broadcasts them to the link-local DHCP multicast group (ff02::1:2).",
+      "raw_payloads": [
+        "Solicit packet layout with OPTION_ELAPSED_TIME, OPTION_CLIENTID, and OPTION_IA_NA"
+      ],
+      "edge_cases": "DUID parsing strictly expects DUID-LLT type (1) containing MAC and a 2000-01-01 epoch offset. Binds local socket to UDP port 546 and retries transmission with interface scope index formatting if local UDP socket sends fail."
+    },
+    "dhcp.lua": {
+      "functions": [
+        "dhcp_build",
+        "dhcp_parse",
+        "make_request"
+      ],
+      "network_logic": "DHCPv4 client protocol client implementation over UDP. Transmits request frames from client port 68 to server port 67 (typically broadcast 255.255.255.255).",
+      "raw_payloads": [
+        "Magic Cookie: 0x63825363 (c\u0082Sc)",
+        "BOOTREQUEST header structure (op=1, htype=1, hlen=6, hops=0, xid, secs, flags, ciaddr, yiaddr, siaddr, giaddr, chaddr, sname, file)"
+      ],
+      "edge_cases": "Binds local UDP socket to port 68. Correctly filters async UDP response buffers on matching 4-byte Transaction IDs (xid). Implements Option Overload parsing, which appends/processes file and sname header fields into the options buffer sequence if Option 52 is flagged."
+    },
+    "dicom.lua": {
+      "functions": [
+        "start_connection",
+        "send",
+        "receive",
+        "pdu_header_encode",
+        "associate",
+        "send_pdata"
+      ],
+      "network_logic": "Digital Imaging and Communications in Medicine (DICOM) client protocol over TCP. Executes association request (A-ASSOCIATE) and transmits P-DATA PDUs.",
+      "raw_payloads": [
+        "\u0001\u0000 + 4-byte little-endian length (ASSOCIATE_REQUEST PDU header)",
+        "\u0004\u0000 + 4-byte little-endian length (DATA PDU header)"
+      ],
+      "edge_cases": "Called/Calling Application Entity Titles (AET) are padded to exactly 16 bytes. Handles PDU type routing by inspecting byte offsets inside response envelopes for ASSOCIATE_ACCEPT (0x02) and ASSOCIATE_REJECT (0x03)."
+    },
+    "dnsbl.lua": {
+      "functions": [
+        "Helper:new",
+        "Helper:listServices",
+        "Helper:validateFilter",
+        "Helper:getServices",
+        "Helper:doQuery",
+        "Helper:checkBL"
+      ],
+      "network_logic": "Asynchronous DNS BlackList lookup library. Queries third-party blocklist providers (e.g. Spamhaus, Spamcop, Tor project exit lists, http:BL) via parallel DNS queries (A/TXT records).",
+      "raw_payloads": [],
+      "edge_cases": "Performs async queries using stdnse.new_thread and monitors execution status using nmap.condvar. Parses response addresses dynamically (e.g. 127.0.0.X) to match corresponding block attributes (e.g. Proxy exit, spammer classification, threat level)."
+    },
+    "dnssd.lua": {
+      "functions": [
+        "Util.ipCompare",
+        "Util.serviceCompare",
+        "Util.createSvcHostTbl",
+        "Util.getUniqueServices",
+        "Util.threadCount",
+        "Comm.getRecordType",
+        "Comm.queryService",
+        "Comm.decodeRecords",
+        "Comm.queryAllServices",
+        "Helper:new",
+        "Helper:setMulticast",
+        "Helper:queryServices"
+      ],
+      "network_logic": "DNS Service Discovery (DNS-SD) client protocol library over UDP (multicast DNS - mDNS - typically port 5353). Sends PTR/SRV/TXT queries via unicast/multicast IPv4 (224.0.0.251) and IPv6 (ff02::fb) endpoints.",
+      "raw_payloads": [
+        "PTR query to _services._dns-sd._udp.local"
+      ],
+      "edge_cases": "Binds DNS query threads via stdnse.new_thread. Decodes SRV target mappings and formats them as port/protocol/service. If multicast mode is activated, automatically registers new discovered target IP addresses into Nmap engine target list via target.add()."
+    },
+    "drda.lua": {
+      "functions": [
+        "DRDAPacket:new",
+        "DRDAPacket:getDRDAByCodePoint",
+        "DRDA:new",
+        "DRDA:addParameter",
+        "DRDAParameter:new",
+        "DRDAParameter:fromString",
+        "DDM:new",
+        "DDM:fromString",
+        "Command.EXCSAT",
+        "Command.ACCSEC",
+        "Command.SECCHK",
+        "Command.ACCRDB",
+        "Helper:new",
+        "Helper:connect",
+        "Helper:getServerInfo",
+        "Helper:login",
+        "Comm:new",
+        "Comm:exchDRDAPacket",
+        "StringUtil.toEBCDIC",
+        "StringUtil.toASCII"
+      ],
+      "network_logic": "Distributed Relational Database Architecture (DRDA) client protocol over TCP (port 50000 for DB2). Serializes/deserializes DDM commands (EXCSAT, ACCSEC, SECCHK, ACCRDB) containing EBCDIC string encodings.",
+      "raw_payloads": [
+        "EXCSAT CodePoint (0x1041)",
+        "ACCSEC CodePoint (0x106d)",
+        "SECCHK CodePoint (0x106e)",
+        "ACCRDB CodePoint (0x2001)"
+      ],
+      "edge_cases": "Handles ASCII-EBCDIC mapping via translation matrix sub-indexing. Accounts for different server flavor responses (DB2 vs Apache Derby vs Informix) inside login state evaluation. Reads packet headers dynamically to evaluate DRDA chaining limits (isChained)."
+    },
+    "eap.lua": {
+      "functions": [
+        "make_eapol",
+        "make_eap",
+        "parse",
+        "send_identity_response",
+        "send_nak_response",
+        "send_start"
+      ],
+      "network_logic": "Extensible Authentication Protocol (EAP) layer-2 client/server protocol. Transmits raw EAPOL packets using local raw socket bindings (dnet:ethernet_send).",
+      "raw_payloads": [
+        "Ethernet Broadcast MAC: 01:80:c2:00:00:03",
+        "EAPOL header: version (1 byte), type (1 byte), length (2 bytes)"
+      ],
+      "edge_cases": "Enforces local network device bound pcap filters for ether proto 0x888e. Formats MD5 challenge responses and NAK sequences dynamically. Sequence tracking strictly expects EAP response IDs to mirror client request identity offsets."
+    },
+    "eigrp.lua": {
+      "functions": [
+        "EIGRP:new",
+        "EIGRP.parse",
+        "EIGRP:addTLV",
+        "EIGRP:isRoutingTLV",
+        "EIGRP:__tostring"
+      ],
+      "network_logic": "Cisco EIGRP protocol encoder/decoder. Processes EIGRP header over IP protocol 88. Re-computes IP checksums natively via packet.in_cksum.",
+      "raw_payloads": [
+        "Opcode: Hello (5), Update (1), Query (3), Reply (4)",
+        "TLV Type limits: Parameters (0x0001), Software Version (0x0004), Software Signature (0x0002)"
+      ],
+      "edge_cases": "Parses variable length destination address byte streams inside TLV.INT/TLV.EXT parameters (padded between 1 and 4 bytes based on network CIDR boundary offsets). Retains recursive loop checking against null TLV length bounds."
+    },
+    "formulas.lua": {
+      "functions": [
+        "calcPwdEntropy",
+        "chi2",
+        "splitbits",
+        "looksRandom",
+        "mean_stddev",
+        "partition",
+        "_qselect",
+        "quickselect",
+        "median"
+      ],
+      "network_logic": "Pure computational logic helper library. Calculates password Shannon entropy, performs Chi-Square statistical analysis to verify byte sample randomness, and implements quickselect/median calculations.",
+      "raw_payloads": [],
+      "edge_cases": "LooksRandom statistical tests are divided into 2-bit, 4-bit, and 8-bit block structures to capture low-level periodic signatures (such as ASCII padding patterns or high-bit omissions)."
+    },
+    "ftp.lua": {
+      "functions": [
+        "connect",
+        "read_reply",
+        "close",
+        "starttls",
+        "is_ssl",
+        "should_try_ssl",
+        "reconnect_ssl",
+        "auth",
+        "pasv"
+      ],
+      "network_logic": "FTP client protocol implementation (RFC 959). Connects to remote FTP servers, parses multi-line replies, implements passive mode (PASV/EPSV) port negotiation, and supports SSL/TLS upgrades (STARTTLS/AUTH TLS).",
+      "raw_payloads": [
+        "AUTH TLS\r\n",
+        "QUIT\r\n",
+        "USER {username}\r\n",
+        "PASS {password}\r\n",
+        "ACCT {acct}\r\n",
+        "PASV\r\n",
+        "EPSV\r\n"
+      ],
+      "edge_cases": "Parses PASV IP octets and validates they match the target IP. If server sends a different IP than target and it is not 0.0.0.0, errors out to prevent PASV IP spoofing. Handles EPSV syntax matching %((.)%1%1(%d+)%1%) to isolate ports."
+    },
+    "geoip.lua": {
+      "functions": [
+        "add",
+        "empty",
+        "get_all_by_ip",
+        "get_all_by_gps",
+        "Location.new",
+        "Location.__pairs",
+        "Location.__tostring"
+      ],
+      "network_logic": "GeoIP metadata registry wrapper. Saves lat/lon coordinates inside the Nmap global registry (nmap.registry.geoip).",
+      "raw_payloads": [],
+      "edge_cases": "Enforces strict coordinate boundaries (-90 <= lat <= 90 and -180 <= lon <= 180). Implements customized iterator __pairs and __tostring metadata conversions to enforce strict output format structure."
+    },
+    "giop.lua": {
+      "functions": [
+        "Packet.GIOP:new",
+        "Packet.GIOP:__tostring",
+        "Packet.GIOP:setVersion",
+        "Packet.GIOP:recv",
+        "ServiceContext:new",
+        "ServiceContext:__tostring",
+        "SendingContextRuntime:new",
+        "Packet.GIOP.reply:new",
+        "Packet.GIOP.reply:recv",
+        "Packet.GIOP.get:new",
+        "Packet.GIOP.get:addServiceContext",
+        "Packet.GIOP._is_a:new",
+        "Packet.GIOP.list:new",
+        "Comm:new",
+        "Comm:exchGIOPPacket",
+        "Helper:new",
+        "Helper:GetNamingContext",
+        "Helper:ListObjects",
+        "Helper:Connect",
+        "Helper:Close",
+        "Helper:Reconnect"
+      ],
+      "network_logic": "General Inter-ORB Protocol (GIOP) client library over TCP (typically CORBA Naming Service on port 1050). Encodes GIOP message envelopes (magic GIOP, version, endianness flags, payload size).",
+      "raw_payloads": [
+        "GIOP Magic: GIOP (GIOP)",
+        "Object keys: NameService\u0000, 0x494e4954",
+        "Interface ID: IDL:omg.org/CosNaming/NamingContextExt:1.0\u0000"
+      ],
+      "edge_cases": "Supports GIOP 1.0 and 1.2 endianness markers (determines whether length fields are parsed big-endian > or little-endian <). Decodes naming contexts and bindings sequences while handling 4-byte boundaries padding dynamically."
+    },
+    "gps.lua": {
+      "functions": [
+        "NMEA.RMC.parse",
+        "NMEA.checksum",
+        "NMEA.parse",
+        "Util.convertTime"
+      ],
+      "network_logic": "NMEA-0183 GPS parsing library. Decodes GPRMC (Recommended Minimum Navigation Information) sentences.",
+      "raw_payloads": [
+        "Checksum separator: *",
+        "Sentence header: "
+      ],
+      "edge_cases": "Computes validation checksums by XOR-ing all bytes between $ and *. Converts latitude/longitude coordinate strings (degrees + minutes/60) to float representation, mapping West (W) and South (S) designations to negative values."
+    }
+  },
+  "core_logic": {}
+}

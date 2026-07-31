@@ -1,0 +1,46 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs — CLOUD-NATIVE Profile
+# Cloud storage, Kubernetes and takeover-focused audit
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: cloud-native
+  description: "Cloud-native audit — S3/Blob/GCS/Spaces, Kubernetes and cloud takeover checks"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  - step: s3_enumeration
+    tool: s3_scanner
+    enabled: true
+    config:
+      timeout: 300
+      wordlist: wordlists/s3_buckets.txt
+
+  - step: cloud_storage_enum
+    tool: cloud_enum
+    enabled: true
+    config:
+      providers: [aws, azure, gcp]
+      timeout: 600
+
+  - step: k8s_discovery
+    tool: kube_hunter
+    enabled: false
+    config:
+      mode: remote
+      timeout: 600
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      tags: [cloud, takeovers, k8s, s3, azure, gcp]
+      severity: [critical, high, medium]
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  auto_exploit: false
+  persistence: false
+  smart_cpe_filter: true

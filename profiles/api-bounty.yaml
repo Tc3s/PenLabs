@@ -1,0 +1,92 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — API-BOUNTY Profile (Unified Tactical Architecture)
+# Bug Bounty focused: API Discovery → XSS → SQLi → Logic Bugs
+# Use case: HackerOne / Bugcrowd / Intigriti programs
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: api-bounty
+  description: "🎯 Bug Bounty  — Playwright SPA → Proxy Rotation → SQLi Relay"
+  author: PenLabs
+  version: "1.0"
+  # : Tactical mode — replaces legacy --tactical-mode CLI flag
+  tactical_mode: "api-bounty"
+
+pipeline:
+  # ... (giữ nguyên các bước cũ) ...
+  - step: spa_discovery
+    tool: playwright
+    enabled: true
+    config:
+      timeout: 30
+      interceptor: true
+
+  - step: crawl
+    tool: katana
+    enabled: true
+    config:
+      max_depth: 5
+      js_crawl: true
+      headless: true
+      timeout: 600
+
+  # ... (các bước khác giữ nguyên) ...
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 20
+      tags:
+        - cve
+        - misconfig
+        - exposure
+        - takeover
+        - default-login
+        - token
+        - xss
+        - sqli
+        - ssrf
+        - lfi
+        - rce
+      severity:
+        - critical
+        - high
+        - medium
+
+  - step: sqli_scan
+    tool: sqlmap
+    enabled: true
+    config:
+      level: 2
+      risk: 1
+      max_urls: 15
+      use_relay: true
+      stealth_mode: true
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  sqlmap_relay: true
+  use_playwright: true
+  waf_bypass: true
+  auto_exploit: false
+  visual_recon: true
+  persistence: false
+  interactsh: true
+  smart_cpe_filter: true
+  no_msf: true
+  origin_finder: true
+
+requirements:
+  critical:
+    - nuclei
+    - httpx
+  important:
+    - katana
+    - ffuf
+  optional:
+    - dalfox
+    - sqlmap
+    - arjun
+    - kiterunner
+    - gowitness

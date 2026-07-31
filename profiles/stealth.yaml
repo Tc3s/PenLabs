@@ -1,0 +1,81 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — STEALTH Profile (Certified)
+# Zero-Touch EASM: Passive OSINT only + SYN scan
+# Optimized for Proxy Rotation & JA4 Fingerprinting
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: stealth
+  description: "Zero-Touch EASM  — Proxy Rotation → JA4 Fingerprinting → OSINT only"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  - step: subdomain_enum
+    tool: subfinder
+    enabled: true
+    config:
+      timeout: 60
+      silent: true
+      threads: 5
+
+  - step: subdomain_enum
+    tool: amass
+    enabled: true
+    config:
+      mode: passive
+      timeout: 1800
+
+  - step: dns_enum
+    tool: dnsx
+    enabled: true
+    config:
+      timeout: 30
+
+  - step: port_scan
+    tool: nmap
+    enabled: true
+    config:
+      scan_type: syn
+      scripts: false
+      timing: T2
+      fragmented: true
+      decoys: true
+      ports: top-200
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      follow_redirects: true
+      tech_detect: true
+      max_targets: 10
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      tags:
+        - exposure
+        - misconfig
+        - takeover
+      severity:
+        - critical
+        - high
+
+rate_limit:
+  nuclei_rate: 30
+  nuclei_concurrency: 5
+  nmap_timing: T2
+  requests_per_second: 10
+  delay_between_requests: "500ms"
+
+flags:
+  stealth_recon: true
+  user_agent_rotation: true
+  waf_bypass: true
+  auto_exploit: false
+  visual_recon: false
+  persistence: false
+  interactsh: false
+  smart_cpe_filter: true

@@ -1,0 +1,67 @@
+# PenLabs — ASSET-DISCOVERY Profile
+
+profile:
+  name: asset-discovery
+  description: "Recon-only asset discovery — subdomains, live URLs, JS, API endpoints, secrets"
+  author: PenLabs
+  version: "1.0"
+  tactical_mode: "asset-discovery"
+
+pipeline:
+  - step: subdomain_enum
+    tool: subfinder
+    enabled: true
+    config:
+      timeout: 120
+      all_sources: true
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      follow_redirects: true
+      tech_detect: true
+      status_code: true
+      title: true
+
+  - step: crawl
+    tool: katana
+    enabled: true
+    config:
+      max_depth: 3
+      js_crawl: true
+      headless: false
+
+  - step: api_discovery
+    tool: kiterunner
+    enabled: true
+    config:
+      wordlist: routes-small.kite
+      max_connections: 10
+
+flags:
+  stealth_recon: false
+  recursive_sub: true
+  visual_recon: false
+  interactsh: false
+  smart_cpe_filter: true
+
+rate_limit:
+  nuclei_rate: 80
+  nuclei_concurrency: 10
+  nmap_timing: T3
+  requests_per_second: 80
+  delay_between_requests: "0"
+  katana_max_urls: 30
+
+requirements:
+  critical:
+    - httpx
+  important:
+    - subfinder
+    - katana
+  optional:
+    - kiterunner
+    - ffuf
+    - nuclei
+

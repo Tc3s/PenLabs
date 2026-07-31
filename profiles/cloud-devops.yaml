@@ -1,0 +1,71 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — CLOUD-DEVOPS Profile (Certified)
+# Infrastructure & CI/CD Security Audit
+# Optimized for Cloud Asset Discovery & Proxy Rotation
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: cloud-devops
+  description: "Cloud/DevOps Audit  — Proxy Rotation → Playwright → CI/CD Fuzzing"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  - step: subdomain_enum
+    tool: subfinder
+    enabled: true
+    config:
+      timeout: 120
+
+  - step: cloud_discovery
+    tool: cloud_plugin
+    enabled: true
+    config:
+      providers: ["aws", "azure", "gcp"]
+
+  - step: port_scan
+    tool: naabu
+    enabled: true
+    config:
+      ports: "80,443,8080,8443,2375,2376,6443,10250,9000,9090,3000,5000"
+      rate: 3000
+
+  - step: spa_discovery
+    tool: playwright
+    enabled: true
+    config:
+      timeout: 30
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      tech_detect: true
+      status_code: true
+      title: true
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 20
+      tags: ["cloud", "devops", "docker", "k8s", "ci", "misconfig"]
+      severity: ["critical", "high", "medium"]
+
+  - step: dirbrute
+    tool: ffuf
+    enabled: true
+    config:
+      wordlist: cicd_paths.txt
+      threads: 30
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  use_playwright: true
+  sqlmap_relay: false
+  auto_exploit: false
+  visual_recon: true
+  persistence: false
+  interactsh: true
+  smart_cpe_filter: true

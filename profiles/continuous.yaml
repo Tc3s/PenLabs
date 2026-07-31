@@ -1,0 +1,48 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — CONTINUOUS Profile (Certified)
+# Lightweight periodic scanning engine
+# Optimized for Fast Recon & Persistent Monitoring
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: continuous
+  description: "Continuous Scan  — Proxy Rotation → Nuclei Delta Scan"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  - step: subdomain_enum
+    tool: subfinder
+    enabled: true
+    config:
+      timeout: 60
+
+  - step: dns_enum
+    tool: dnsx
+    enabled: true
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      status_code: true
+      title: true
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 25
+      tags: ["cve", "exposure", "takeover"]
+      severity: ["critical", "high"]
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  use_playwright: false  # Tắt để tăng tốc độ quét định kỳ
+  sqlmap_relay: false
+  auto_exploit: false
+  visual_recon: false
+  persistence: false
+  interactsh: true
+  smart_cpe_filter: true

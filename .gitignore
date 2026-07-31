@@ -1,0 +1,62 @@
+# PenLabs — .gitignore
+
+# Python
+venv/
+__pycache__/
+*.pyc
+*.pyo
+*.egg-info/
+
+# Output directories
+FINAL_*/
+VULN_FINAL_*/
+output/
+lg.txt
+scan_results.txt
+scope.txt
+test_report.py
+.coverage
+.pytest_cache/
+
+# Legacy archive
+legacy/
+
+# Vim/Editor swap files
+*.swp
+*.swo
+*~
+.*.swp
+
+# Sensitive files
+.env
+msf_module_map.json
+m3_attack_plan.json
+proxies.txt
+proxy/.ja3_ca/
+
+# Binary artifacts
+*.jar
+marshalsec.jar
+
+# Data & Cache
+data/nvd_cache/
+data/epss_cache/
+data/msf_module_map.json
+repro/session_id.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Antigravity Brain
+.agent/
+.agents/
+
+# Runtime PID files
+.msfrpcd_pid
+
+# Generated reports (contain target-specific data)
+reports/

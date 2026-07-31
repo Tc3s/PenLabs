@@ -1,0 +1,67 @@
+# PenLabs — INFRA-SMASH Profile
+
+profile:
+  name: infra-smash
+  description: "Infrastructure audit — passive ports, Naabu/Nmap, NSE, high-signal infra triage"
+  author: PenLabs
+  version: "1.0"
+  tactical_mode: "infra-smash"
+
+pipeline:
+  - step: passive_ports
+    tool: internetdb
+    enabled: true
+    config:
+      source: shodan-internetdb
+
+  - step: port_scan
+    tool: naabu
+    enabled: true
+    config:
+      top_ports: 1000
+
+  - step: service_verify
+    tool: nmap
+    enabled: true
+    config:
+      timing: T4
+      scripts: version
+
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      tags:
+        - cve
+        - exposure
+        - misconfig
+      severity:
+        - critical
+        - high
+        - medium
+
+flags:
+  stealth_recon: false
+  visual_recon: false
+  interactsh: true
+  smart_cpe_filter: true
+
+rate_limit:
+  nuclei_rate: 150
+  nuclei_concurrency: 25
+  nmap_timing: T4
+  requests_per_second: 100
+  delay_between_requests: "0"
+  katana_max_urls: 10
+
+requirements:
+  critical:
+    - nmap
+  important:
+    - nuclei
+    - httpx
+    - naabu
+  optional:
+    - rustscan
+    - ffuf
+

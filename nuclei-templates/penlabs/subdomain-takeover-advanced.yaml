@@ -1,0 +1,83 @@
+id: penlabs-subdomain-takeover-advanced
+
+info:
+  name: Advanced Subdomain Takeover Detection
+  author: PenLabs
+  severity: critical
+  description: |
+    Detects subdomain takeover opportunities across major cloud providers.
+    Checks for CNAME records pointing to unclaimed services.
+  tags: penlabs,takeover,subdomain,cloud
+  reference:
+    - https://github.com/EdOverflow/can-i-take-over-xyz
+
+http:
+  - method: GET
+    path:
+      - "{{BaseURL}}"
+
+    matchers-condition: or
+    matchers:
+      # GitHub Pages
+      - type: word
+        words:
+          - "There isn't a GitHub Pages site here."
+          - "For root URLs (like http://example.com/) you must provide an index.html file"
+
+      # Heroku
+      - type: word
+        words:
+          - "No such app"
+          - "herokucdn.com/error-pages/no-such-app.html"
+
+      # AWS S3
+      - type: word
+        words:
+          - "NoSuchBucket"
+          - "The specified bucket does not exist"
+
+      # Azure
+      - type: word
+        words:
+          - "404 Web Site not found"
+          - "The resource you are looking for has been removed"
+
+      # Shopify
+      - type: word
+        words:
+          - "Sorry, this shop is currently unavailable"
+          - "Only one step left!"
+
+      # Fastly
+      - type: word
+        words:
+          - "Fastly error: unknown domain"
+
+      # Pantheon
+      - type: word
+        words:
+          - "404 error unknown site!"
+          - "The gods are wise"
+
+      # Tumblr  
+      - type: word
+        words:
+          - "Whatever you were looking for doesn't currently exist at this address"
+
+      # Wordpress.com
+      - type: word
+        words:
+          - "Do you want to register"
+          - "doesn't exist"
+
+      # Fly.io
+      - type: word
+        words:
+          - "404 Not Found"
+          - "Fly.io"
+        condition: and
+
+      # Netlify
+      - type: word
+        words:
+          - "Not Found - Request ID:"

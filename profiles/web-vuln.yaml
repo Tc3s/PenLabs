@@ -1,0 +1,82 @@
+# ═══════════════════════════════════════════════════════════════
+# PenLabs  — WEB-VULN Profile
+# OWASP 2026 — Web vulnerability focused, no Nmap
+# Use case: Bug bounty, web app pentesting
+# ═══════════════════════════════════════════════════════════════
+
+profile:
+  name: web-vuln
+  description: "OWASP 2026  — Playwright SPA → Proxy Rotation → Nuclei Chunking"
+  author: PenLabs
+  version: "1.0"
+
+pipeline:
+  # ... (giữ nguyên subdomain enum) ...
+  - step: spa_discovery
+    tool: playwright
+    enabled: true
+    config:
+      timeout: 30
+
+  - step: web_probe
+    tool: httpx
+    enabled: true
+    config:
+      follow_redirects: true
+      tech_detect: true
+      status_code: true
+      title: true
+
+  - step: crawl
+    tool: katana
+    enabled: true
+    config:
+      max_depth: 4
+      js_crawl: true
+      headless: true
+      timeout: 600
+
+  # ... (các bước khác giữ nguyên) ...
+  - step: vuln_scan
+    tool: nuclei
+    enabled: true
+    config:
+      chunk_size: 20
+      tags:
+        - cve
+        - misconfig
+        - exposure
+        - takeover
+        - xss
+        - sqli
+        - ssrf
+        - lfi
+        - rce
+        - redirect
+      severity:
+        - critical
+        - high
+        - medium
+
+flags:
+  stealth_recon: false
+  user_agent_rotation: true
+  use_playwright: true
+  sqlmap_relay: true
+  auto_exploit: false
+  visual_recon: true
+  persistence: false
+  interactsh: true
+  smart_cpe_filter: true
+
+requirements:
+  critical:
+    - nuclei
+    - httpx
+  important:
+    - katana
+    - ffuf
+  optional:
+    - dalfox
+    - sqlmap
+    - gowitness
