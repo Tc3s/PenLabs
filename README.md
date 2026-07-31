@@ -200,7 +200,7 @@ graph TB
     subgraph INIT["INITIALIZATION"]
         CLI["CLI: main.py<br/>--target / --mode / --profile"]
         PROFILE["core/profile_engine.py<br/>Load YAML Profile"]
-        TUI["core/dashboard.py<br/>Tactical Options Menu V5"]
+        TUI["core/dashboard.py<br/>Tactical Options Menu V1.0"]
         PREFLIGHT["Preflight Tool Check<br/>CRITICAL / IMPORTANT / OPTIONAL"]
         CLI --> PROFILE
         PROFILE --> TUI
