@@ -60,3 +60,7 @@ Thumbs.db
 
 # Generated reports (contain target-specific data)
 reports/
+
+# Internal plans & agent cache
+.hermes/
+
